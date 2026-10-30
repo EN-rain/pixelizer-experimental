@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+
+# Scratch debug images
+chin_*.png
+ada_chin_crop.png
+circle_crop.png
+test_gap_repaired.png
+ui_*.png

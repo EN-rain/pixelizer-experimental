@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:," />
+  <title>Pixelcraft - AI to Pixel Art Cleaner</title>
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="logo-area">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 3h4v4H3V3zm7 0h4v4h-4V3zm7 0h4v4h-4V3zM3 10h4v4H3v-4zm14 0h4v4h-4v-4zM3 17h4v4H3v-4zm7 7h4v-4h-4v4zm7-7h4v4h-4v-4zm-7-7h4v4h-4v-4z"/>
+        </svg>
+      </div>
+      <div class="logo-title">PIXELCRAFT</div>
+      <div class="logo-badge">PRO</div>
+    </div>
+
+    <div class="header-actions">
+      <span id="imageInfo" class="image-info">No image loaded</span>
+      <button id="btnLoadSample" class="btn btn-sm" title="Load the sample image">Load Sample</button>
+      <button id="btnUpload" class="btn btn-sm btn-primary" title="Choose your own image">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg>
+        Upload Image
+      </button>
+      <input type="file" id="fileInput" accept="image/*" style="display: none" />
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="app-workspace">
+    <!-- Left: Upload / Drop zone + Preview -->
+    <div class="canvas-viewport" id="viewport">
+      <canvas id="mainCanvas"></canvas>
+
+      <!-- Empty state: big upload / drag area -->
+      <div id="dropZone" class="drop-zone" role="button" tabindex="0">
+        <svg class="drop-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="drop-zone-title">Drag &amp; drop your AI pixel art here</div>
+        <div class="drop-zone-sub">or click to browse &middot; paste with Ctrl+V &middot; PNG, JPG, WebP</div>
+        <button id="btnDropSample" class="btn btn-sm" type="button">Try the sample image</button>
+      </div>
+
+      <!-- Preview mode tabs -->
+      <div class="view-tabs chrome" id="viewTabs">
+        <button class="view-tab" data-view="mixels">Compare</button>
+        <button class="view-tab" data-view="grid">Grid</button>
+        <button class="view-tab" data-view="background">Background</button>
+        <button class="view-tab" data-view="outline">Outline</button>
+        <button class="view-tab active" data-view="export">Result</button>
+      </div>
+
+      <!-- Zoom controls -->
+      <div class="viewport-zoom-badge chrome">
+        <span id="zoomLevelText">100%</span>
+        <button id="btnZoomOut" title="Zoom Out">-</button>
+        <button id="btnZoomIn" title="Zoom In">+</button>
+        <button id="btnFitScreen" title="Fit to Screen">Fit</button>
+        <button id="btnResetZoom" title="100% Actual Scale">1:1</button>
+      </div>
+
+      <!-- Compare labels -->
+      <div class="split-labels" id="splitLabels" style="display: none;">
+        <div class="split-pill active"><span class="indicator-dot"></span>Original AI Image</div>
+        <div class="split-pill"><span class="indicator-dot"></span>Snapped Pixel Art</div>
+      </div>
+
+      <!-- Vertical palette strip -->
+      <div id="canvasPaletteBar" class="canvas-palette-bar" style="display: none;"></div>
+    </div>
+
+    <!-- Right: all options -->
+    <aside class="sidebar-panel">
+      <div class="sidebar-content">
+
+        <!-- Output variations -->
+        <details class="opt-section" open>
+          <summary><span class="opt-title">Output Variations</span><span class="opt-meta" id="exportVariationBadge">#1 Balanced</span></summary>
+          <div class="opt-body">
+            <div id="variationThumbs" class="variation-thumbs-grid"></div>
+            <div id="variationDesc" class="opt-hint"></div>
+          </div>
+        </details>
+
+        <!-- Grid -->
+        <details class="opt-section" open>
+          <summary><span class="opt-title">Pixel Grid</span><span class="opt-meta" id="gridDimensionsText">&ndash;</span></summary>
+          <div class="opt-body">
+            <div class="stat-line"><span>Detected</span><span id="gridPitchText">&ndash;</span></div>
+
+            <div class="control-group">
+              <label class="control-label">Grid Size</label>
+              <div class="segmented-btn-group">
+                <button class="seg-btn active" data-grid-mode="auto">Auto</button>
+                <button class="seg-btn" data-grid-mode="32">32&times;32</button>
+                <button class="seg-btn" data-grid-mode="64">64&times;64</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <div class="control-label"><span>Pitch Scale Nudge</span><span id="pitchNudgeValue" class="control-value">0%</span></div>
+              <input type="range" id="pitchNudgeSlider" min="-10" max="10" value="0" step="0.5" />
+            </div>
+            <div class="control-group">
+              <div class="control-label"><span>Offset X Nudge</span><span id="offXNudgeValue" class="control-value">0px</span></div>
+              <input type="range" id="offXNudgeSlider" min="-15" max="15" value="0" step="1" />
+            </div>
+            <div class="control-group">
+              <div class="control-label"><span>Offset Y Nudge</span><span id="offYNudgeValue" class="control-value">0px</span></div>
+              <input type="range" id="offYNudgeSlider" min="-15" max="15" value="0" step="1" />
+            </div>
+            <button id="btnResetNudges" class="btn btn-sm" style="width: 100%;">Reset Nudges</button>
+
+            <label class="toggle-row">
+              <span class="control-label" style="margin: 0;">Show Grid Lines (Grid view)</span>
+              <input type="checkbox" id="toggleGridOverlay" checked />
+              <div class="toggle-switch"></div>
+            </label>
+          </div>
+        </details>
+
+        <!-- Mixels / Compare -->
+        <details class="opt-section">
+          <summary><span class="opt-title">Mixels &amp; Compare</span><span class="opt-meta" id="mixelStatValue">&ndash;</span></summary>
+          <div class="opt-body">
+            <div class="stat-line"><span>Status</span><span id="mixelStatBadge">&ndash;</span></div>
+            <label class="toggle-row">
+              <span class="control-label" style="margin: 0;">Highlight Mixels (Heatmap)</span>
+              <input type="checkbox" id="toggleHeatmap" checked />
+              <div class="toggle-switch"></div>
+            </label>
+            <div class="control-group">
+              <div class="control-label"><span>Comparison Slider</span><span id="splitSliderValue" class="control-value">50%</span></div>
+              <input type="range" id="splitSlider" min="0" max="100" value="50" />
+            </div>
+          </div>
+        </details>
+
+        <!-- Background -->
+        <details class="opt-section" open>
+          <summary><span class="opt-title">Background Removal</span></summary>
+          <div class="opt-body">
+            <div class="control-group">
+              <div class="control-label"><span>Removal Tolerance</span><span id="bgToleranceValue" class="control-value">12%</span></div>
+              <input type="range" id="bgToleranceSlider" min="1" max="45" value="12" />
+            </div>
+            <label class="toggle-row">
+              <span class="control-label" style="margin: 0;">Remove Enclosed Islands</span>
+              <input type="checkbox" id="toggleBgIslands" />
+              <div class="toggle-switch"></div>
+            </label>
+          </div>
+        </details>
+
+        <!-- Outline -->
+        <details class="opt-section" open>
+          <summary><span class="opt-title">Fix Outline</span><span class="opt-meta" id="outlineRepairedCount">&ndash;</span></summary>
+          <div class="opt-body">
+            <div class="control-group">
+              <label class="control-label">Mode</label>
+              <div class="segmented-btn-group">
+                <button class="seg-btn active" data-outline-mode="inside">Inside Fix</button>
+                <button class="seg-btn" data-outline-mode="outside">Outside</button>
+                <button class="seg-btn" data-outline-mode="clean_only">Clean Only</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label">Outline Color</label>
+              <div class="segmented-btn-group">
+                <button class="seg-btn active" data-outline-color="auto">Auto Darkest</button>
+                <button class="seg-btn" data-outline-color="custom">Custom Hex</button>
+              </div>
+              <input type="color" id="outlineCustomColor" value="#141419" style="margin-top: 6px; width: 100%; height: 32px; border-radius: 4px; background: none; border: 1px solid var(--border-color); cursor: pointer; display: none;" />
+            </div>
+            <label class="toggle-row">
+              <span class="control-label" style="margin: 0;">Connect Diagonal Linework</span>
+              <input type="checkbox" id="toggleConnectDiagonals" checked />
+              <div class="toggle-switch"></div>
+            </label>
+            <label class="toggle-row">
+              <span class="control-label" style="margin: 0;">Bridge Broken Gaps (Chin &amp; Strokes)</span>
+              <input type="checkbox" id="toggleBridgeGaps" checked />
+              <div class="toggle-switch"></div>
+            </label>
+            <label class="toggle-row">
+              <span class="control-label" style="margin: 0;">Show Blue Highlights (Outline view)</span>
+              <input type="checkbox" id="toggleOutlineHighlights" checked />
+              <div class="toggle-switch"></div>
+            </label>
+          </div>
+        </details>
+
+        <!-- Colors -->
+        <details class="opt-section" open>
+          <summary><span class="opt-title">Colors</span><span class="opt-meta" id="colorComparisonTitle">&ndash;</span></summary>
+          <div class="opt-body">
+            <div class="control-group">
+              <div class="control-label"><span>Target Colors</span><span id="targetColorsValue" class="control-value">16</span></div>
+              <input type="range" id="targetColorsSlider" min="2" max="64" value="16" />
+            </div>
+            <div class="segmented-btn-group">
+              <button class="seg-btn" data-color-preset="8">8</button>
+              <button class="seg-btn active" data-color-preset="16">16</button>
+              <button class="seg-btn" data-color-preset="24">24</button>
+              <button class="seg-btn" data-color-preset="32">32</button>
+              <button class="seg-btn" data-color-preset="64">64</button>
+            </div>
+            <label class="toggle-row">
+              <span class="control-label" style="margin: 0;">Preserve Dark &amp; Light Extremes</span>
+              <input type="checkbox" id="toggleKeepExtremes" checked />
+              <div class="toggle-switch"></div>
+            </label>
+            <div class="control-group">
+              <div class="control-label"><span>Palette (click to copy hex)</span><span id="paletteCountLabel" class="control-value">&ndash;</span></div>
+              <div class="palette-swatches" id="paletteSwatchesContainer"></div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Export options -->
+        <details class="opt-section">
+          <summary><span class="opt-title">Export Options</span><span class="opt-meta" id="exportDimensionsText">&ndash;</span></summary>
+          <div class="opt-body">
+            <div class="control-group">
+              <label class="control-label">Upscaled PNG (nearest-neighbor)</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                <button class="btn btn-sm" id="btnDownload4x">x4</button>
+                <button class="btn btn-sm" id="btnDownload8x">x8</button>
+                <button class="btn btn-sm" id="btnDownload16x">x16</button>
+                <button class="btn btn-sm" id="btnDownload20x">x20</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label">Palette File</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                <button id="btnDownloadHex" class="btn btn-sm">.HEX</button>
+                <button id="btnDownloadGpl" class="btn btn-sm">.GPL (Aseprite)</button>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label">Result View Backdrop</label>
+              <div class="segmented-btn-group">
+                <button class="seg-btn active" data-backdrop="checkerboard">Checker</button>
+                <button class="seg-btn" data-backdrop="dark">Dark</button>
+                <button class="seg-btn" data-backdrop="light">Light</button>
+                <button class="seg-btn" data-backdrop="scene">Scene</button>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Sticky download bar -->
+      <div class="sidebar-footer">
+        <button id="btnDownload1x" class="btn btn-primary" style="width: 100%;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Selected (1:1 PNG)
+        </button>
+        <button id="btnDownloadAll10" class="btn" style="width: 100%;">Download All 10 Variations (ZIP)</button>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Fullscreen Drag & Drop Overlay -->
+  <div id="dropOverlay" class="drop-overlay">
+    <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    <div class="drop-text">Drop AI Image to Clean</div>
+    <div class="drop-subtext">Supports PNG, WebP, JPEG, GIF</div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Entry Script -->
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
